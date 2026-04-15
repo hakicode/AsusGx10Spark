@@ -183,6 +183,16 @@ docker ps
 
 ## 6. Cài đặt mô hình LLM
 
+### 6.0 Chuẩn bị Hugging Face token
+
+Một số model cần quyền truy cập từ Hugging Face, nên cần khai báo token trước khi chạy recipe:
+
+```bash
+export HF_TOKEN="xxx"
+```
+
+Nếu muốn lưu lâu dài, thêm biến này vào `~/.bashrc` hoặc `~/.zshrc`.
+
 ### 6.1 Thư mục recipes
 
 ```bash
@@ -323,6 +333,14 @@ newgrp docker
 
 ```bash
 sudo ufw disable
+```
+
+### 9.4 Permission denied (cache)
+
+Nếu gặp lỗi quyền với cache của Hugging Face, fix bằng:
+
+```bash
+sudo chown -R $USER:$USER ~/.cache/huggingface
 ```
 
 ---
