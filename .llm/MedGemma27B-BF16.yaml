@@ -1,0 +1,40 @@
+recipe_version: "1"
+name: MedGemma-27b-it-bf16
+description: vLLM serving MedGemma-27b-it in BF16 with cluster-first defaults
+
+# HuggingFace model
+model: google/medgemma-27b-it
+
+# Deployment mode
+cluster_only: false
+solo_only: false
+
+# Container image
+container: vllm-node-tf5
+
+mods: []
+
+# Default settings
+defaults:
+    port: 8000
+    host: 0.0.0.0
+    tensor_parallel: 2
+    gpu_memory_utilization: 0.8
+    max_model_len: 128000
+    max_num_batched_tokens: 4096
+
+# Environment variables
+env: {}
+
+command: |
+    vllm serve google/medgemma-27b-it \
+      --dtype bfloat16 \
+      --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray

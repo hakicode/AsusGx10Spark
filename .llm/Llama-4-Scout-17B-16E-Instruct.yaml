@@ -1,0 +1,35 @@
+recipe_version: "1"
+name: Llama-4-Scout-17B-16E-Instruct-bf16
+description: vLLM serving Llama-4-Scout-17B-16E-Instruct in BF16 on a 2-node GX10 cluster
+
+model: meta-llama/Llama-4-Scout-17B-16E-Instruct
+
+cluster_only: true
+solo_only: false
+
+container: vllm-node-tf5
+
+mods: []
+
+defaults:
+    port: 8000
+    host: 0.0.0.0
+    tensor_parallel: 2
+    gpu_memory_utilization: 0.8
+    max_model_len: 32768
+    max_num_batched_tokens: 4096
+
+env: {}
+
+command: |
+    vllm serve meta-llama/Llama-4-Scout-17B-16E-Instruct \
+      --dtype bfloat16 \
+      --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray

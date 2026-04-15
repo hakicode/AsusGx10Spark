@@ -1,0 +1,34 @@
+recipe_version: "1"
+name: MedGemma-4b-1.5-it-bf16
+description: vLLM serving MedGemma-1.5-4b-it in BF16 on a single GX10 node
+
+model: google/medgemma-1.5-4b-it
+
+cluster_only: false
+solo_only: true
+
+container: vllm-node-tf5
+
+mods: []
+
+defaults:
+    port: 8000
+    host: 0.0.0.0
+    tensor_parallel: 1
+    gpu_memory_utilization: 0.75
+    max_model_len: 128000
+    max_num_batched_tokens: 4096
+
+env: {}
+
+command: |
+    vllm serve google/medgemma-1.5-4b-it \
+      --dtype bfloat16 \
+      --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      -tp {tensor_parallel}
