@@ -1,0 +1,44 @@
+# Recipe: MedGemma-1.5-4B-IT
+# MedGemma-1.5-4B-IT model in bfloat16 precision
+
+recipe_version: "1"
+name: MedGemma-1.5-4B-IT
+description: vLLM serving MedGemma-1.5-4B-IT (bfloat16)
+
+# HuggingFace model to download
+model: google/medgemma-1.5-4b-it
+
+cluster_only: false
+solo_only: false
+
+container: vllm-node-tf5
+
+build_args:
+    - --tf5
+
+mods: []
+
+# Default settings
+defaults:
+    port: 8000
+    host: 0.0.0.0
+    tensor_parallel: 2
+    gpu_memory_utilization: 0.8
+    max_model_len: 8192
+    max_num_batched_tokens: 8192
+
+env: {}
+
+# The vLLM serve command template
+command: |
+    vllm serve google/medgemma-1.5-4b-it \
+      --dtype bfloat16 \
+      --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray

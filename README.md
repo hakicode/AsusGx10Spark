@@ -213,32 +213,20 @@ Theo từng recipe:
 
 Khi vận hành trên cụm gồm 2 node Spark/GX10, cấu hình mẫu nên đặt:
 
-- `tensor_parallel_size=2`
-- `pipeline_parallel_size=1` nếu không chia pipeline riêng
-
-Ví dụ nếu recipe hoặc launcher của bạn cho phép truyền tham số trực tiếp:
-
-```bash
-export TENSOR_PARALLEL_SIZE=2
-export PIPELINE_PARALLEL_SIZE=1
-
-./run-qwen.sh \
-    --tensor-parallel-size ${TENSOR_PARALLEL_SIZE} \
-    --pipeline-parallel-size ${PIPELINE_PARALLEL_SIZE}
-```
+- `tp=2`
+- `pp` là tham số khác của hệ thống, không dùng để thay thế cho Tensor Parallel
 
 Ví dụ cấu hình dạng YAML:
 
 ```yaml
 model:
-    tensor_parallel_size: 2
-    pipeline_parallel_size: 1
+    tp: 2
 ```
 
 Ghi chú:
 
 - Với cluster 2 node, `tp=2` là giá trị mẫu phù hợp cho Tensor Parallel.
-- `tp` và các tham số parallel khác là độc lập; nếu recipe của từng model có thêm cấu hình riêng, giữ theo launcher tương ứng.
+- Nếu recipe hoặc launcher của từng model có thêm tham số riêng, giữ theo đúng schema của hệ thống đó.
 
 ---
 

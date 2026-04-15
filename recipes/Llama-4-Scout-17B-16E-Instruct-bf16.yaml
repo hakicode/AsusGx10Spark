@@ -1,0 +1,44 @@
+# Recipe: Llama-4-Scout-17B-16E-Instruct
+# Llama-4-Scout-17B-16E-Instruct model in bfloat16 precision
+
+recipe_version: "1"
+name: Llama-4-Scout-17B-16E-Instruct
+description: vLLM serving Llama-4-Scout-17B-16E-Instruct (bfloat16)
+
+# HuggingFace model to download
+model: meta-llama/Llama-4-Scout-17B-16E-Instruct
+
+cluster_only: false
+solo_only: false
+
+container: vllm-node-tf5
+
+build_args:
+    - --tf5
+
+mods: []
+
+# Default settings
+defaults:
+    port: 8000
+    host: 0.0.0.0
+    tensor_parallel: 2
+    gpu_memory_utilization: 0.9
+    max_model_len: 8192
+    max_num_batched_tokens: 8192
+
+env: {}
+
+# The vLLM serve command template
+command: |
+    vllm serve meta-llama/Llama-4-Scout-17B-16E-Instruct \
+      --dtype bfloat16 \
+      --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray
