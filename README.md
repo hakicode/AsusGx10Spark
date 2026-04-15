@@ -209,6 +209,37 @@ Theo từng recipe:
 ./run-<model>.sh
 ```
 
+### 6.4 Ví dụ cấu hình LLM cho cluster 2 node
+
+Khi vận hành trên cụm gồm 2 node Spark/GX10, cấu hình mẫu nên đặt:
+
+- `tensor_parallel_size=2`
+- `pipeline_parallel_size=1` nếu không chia pipeline riêng
+
+Ví dụ nếu recipe hoặc launcher của bạn cho phép truyền tham số trực tiếp:
+
+```bash
+export TENSOR_PARALLEL_SIZE=2
+export PIPELINE_PARALLEL_SIZE=1
+
+./run-qwen.sh \
+    --tensor-parallel-size ${TENSOR_PARALLEL_SIZE} \
+    --pipeline-parallel-size ${PIPELINE_PARALLEL_SIZE}
+```
+
+Ví dụ cấu hình dạng YAML:
+
+```yaml
+model:
+    tensor_parallel_size: 2
+    pipeline_parallel_size: 1
+```
+
+Ghi chú:
+
+- Với cluster 2 node, `tp=2` là giá trị mẫu phù hợp cho Tensor Parallel.
+- `tp` và các tham số parallel khác là độc lập; nếu recipe của từng model có thêm cấu hình riêng, giữ theo launcher tương ứng.
+
 ---
 
 ## 7. Kiến trúc phân bổ tài nguyên (QUAN TRỌNG)
