@@ -144,6 +144,24 @@ Kiểm tra:
 docker run hello-world
 ```
 
+### 4.1 Cài đặt Python và Hugging Face
+
+```bash
+sudo apt install python3-venv -y
+python3 -m venv ~/venv
+source ~/venv/bin/activate
+
+pip install huggingface_hub
+
+hf auth login
+hf auth whoami
+```
+
+Ghi chú:
+
+- Kích hoạt môi trường `~/venv` trước khi chạy `pip` và `hf`.
+- Nếu recipe vẫn yêu cầu token môi trường, vẫn có thể dùng `export HF_TOKEN="xxx"` ở phần dưới.
+
 ---
 
 ## 5. Cài đặt Spark + vLLM (Multi-node)
@@ -185,7 +203,14 @@ docker ps
 
 ### 6.0 Chuẩn bị Hugging Face token
 
-Một số model cần quyền truy cập từ Hugging Face, nên cần khai báo token trước khi chạy recipe:
+Một số model cần quyền truy cập từ Hugging Face. Có thể đăng nhập bằng CLI trước, hoặc khai báo token trước khi chạy recipe:
+
+```bash
+hf auth login
+hf auth whoami
+```
+
+Hoặc dùng biến môi trường:
 
 ```bash
 export HF_TOKEN="xxx"
