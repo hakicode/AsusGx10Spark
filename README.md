@@ -150,6 +150,8 @@ docker run hello-world
 sudo apt install python3-venv -y
 python3 -m venv ~/venv
 source ~/venv/bin/activate
+echo 'alias hf="~/venv/bin/hf"' >> ~/.bashrc
+source ~/.bashrc
 
 pip install huggingface_hub
 
@@ -160,6 +162,7 @@ hf auth whoami
 Ghi chú:
 
 - Kích hoạt môi trường `~/venv` trước khi chạy `pip` và `hf`.
+- Thêm alias `hf` vào `~/.bashrc` để gọi trực tiếp binary trong môi trường ảo.
 - Nếu recipe vẫn yêu cầu token môi trường, vẫn có thể dùng `export HF_TOKEN="xxx"` ở phần dưới.
 
 ---
