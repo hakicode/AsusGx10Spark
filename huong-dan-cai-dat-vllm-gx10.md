@@ -585,40 +585,38 @@ Cần HuggingFace Token và đã accept license (xem mục 10). Thứ tự load:
 
 ```bash
 docker run -d \
-  --runtime nvidia \
-  --gpus all \
-  --network host \
-  --name medgemma-4b \
-  --restart unless-stopped \
+  --runtime nvidia --gpus all --network host \
+  --name medgemma-4b --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
-  python3 -m vllm.entrypoints.openai.api_server \
-    --model google/medgemma-4b-it \
+  google/medgemma-4b-it \
     --tensor-parallel-size 1 \
-    --dtype fp8 \
+    --dtype auto \
+    --quantization fp8 \
+    --kv-cache-dtype fp8 \
     --max-model-len 4096 \
     --port 8002
 ```
 
 Kiểm tra inference hoạt động trước khi load model tiếp theo.
 
+> **Lưu ý image entrypoint:** `vllm/vllm-openai` đã có sẵn entrypoint là `vllm serve` — chỉ truyền thẳng tên model và các tham số, không lặp lại `vllm serve` trong lệnh docker run.
+
 ### 8.2 MedGemma 27B – Span 2 node, port 8000
 
 ```bash
 docker run -d \
-  --runtime nvidia \
-  --gpus all \
-  --network host \
-  --name medgemma-27b \
-  --restart unless-stopped \
+  --runtime nvidia --gpus all --network host \
+  --name medgemma-27b --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
-  python3 -m vllm.entrypoints.openai.api_server \
-    --model google/medgemma-27b \
+  google/medgemma-27b \
     --tensor-parallel-size 2 \
-    --dtype fp8 \
+    --dtype auto \
+    --quantization fp8 \
+    --kv-cache-dtype fp8 \
     --max-model-len 8192 \
     --port 8000
 ```
@@ -629,18 +627,16 @@ docker run -d \
 
 ```bash
 docker run -d \
-  --runtime nvidia \
-  --gpus all \
-  --network host \
-  --name llama4-scout \
-  --restart unless-stopped \
+  --runtime nvidia --gpus all --network host \
+  --name llama4-scout --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
-  python3 -m vllm.entrypoints.openai.api_server \
-    --model meta-llama/Llama-4-Scout-17B-16E-Instruct \
+  meta-llama/Llama-4-Scout-17B-16E-Instruct \
     --tensor-parallel-size 1 \
-    --dtype fp8 \
+    --dtype auto \
+    --quantization fp8 \
+    --kv-cache-dtype fp8 \
     --max-model-len 8192 \
     --port 8001
 ```
@@ -697,10 +693,21 @@ Cả 3 model là gated model, phải accept license trước khi download:
 - Llama 4 Scout → https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct
 - Tạo token → https://huggingface.co/settings/tokens
 
+Khai báo token trên **cả 2 máy**:
+
 ```bash
 echo 'export HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxxxxx' >> ~/.bashrc
 source ~/.bashrc
 ```
+
+Kiểm tra đã nhận chưa:
+
+```bash
+echo $HUGGING_FACE_HUB_TOKEN
+# → phải hiện ra token, không phải dòng trống
+```
+
+Khi chạy `docker run`, biến `$HUGGING_FACE_HUB_TOKEN` được truyền vào container qua flag `-e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN`.
 
 ### Thứ tự khởi động
 
@@ -716,12 +723,22 @@ source ~/.bashrc
 9. Load Llama 4 Scout → test curl
 ```
 
-### FP8 KV Cache
+### FP8 Quantization
 
-Tiết kiệm thêm ~30% bộ nhớ:
+vLLM dùng 2 flag riêng biệt để bật FP8, không phải `--dtype fp8`:
+
+| Flag | Tác dụng | Giá trị |
+|---|---|---|
+| `--dtype` | Data type tính toán | `auto` — vLLM tự chọn tối ưu |
+| `--quantization` | Quantize weights model | `fp8` |
+| `--kv-cache-dtype` | Quantize KV cache | `fp8` hoặc `fp8_e4m3` |
 
 ```bash
---kv-cache-dtype fp8_e5m2
+# Ví dụ kết hợp đầy đủ
+vllm serve <model> \
+  --dtype auto \
+  --quantization fp8 \
+  --kv-cache-dtype fp8
 ```
 
 ### Chạy vLLM không qua Docker
@@ -731,9 +748,10 @@ Khi Docker image không tương thích CUDA 13:
 ```bash
 source ~/.venv-vllm/bin/activate
 
-python3 -m vllm.entrypoints.openai.api_server \
-  --model google/medgemma-4b-it \
-  --dtype fp8 \
+vllm serve google/medgemma-4b-it \
+  --dtype auto \
+  --quantization fp8 \
+  --kv-cache-dtype fp8 \
   --max-model-len 4096 \
   --port 8002
 ```
