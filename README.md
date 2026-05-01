@@ -368,7 +368,7 @@ sudo ufw disable
 Nếu gặp lỗi quyền với cache của Hugging Face, fix bằng:
 
 ```bash
-sudo chown -R $USER:$USER ~/.cache/huggingface
+    sudo chown -R $USER:$USER ~/.cache/huggingface
 ```
 
 ---
