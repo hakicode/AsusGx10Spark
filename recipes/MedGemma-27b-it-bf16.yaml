@@ -1,11 +1,7 @@
-# Recipe: MedGemma-27B-IT
-# MedGemma-27B-IT model in bfloat16 precision
-
 recipe_version: "1"
 name: MedGemma-27B-IT
 description: vLLM serving MedGemma-27B-IT (bfloat16)
 
-# HuggingFace model to download
 model: google/medgemma-27b-it
 
 cluster_only: false
@@ -18,27 +14,28 @@ build_args:
 
 mods: []
 
-# Default settings
 defaults:
     port: 8000
     host: 0.0.0.0
     tensor_parallel: 2
-    gpu_memory_utilization: 0.9
-    max_model_len: 8192
-    max_num_batched_tokens: 8192
+    gpu_memory_utilization: 0.90
+    max_model_len: 65536
+    max_num_batched_tokens: 65536
+    max_num_seqs: 32
 
 env: {}
 
-# The vLLM serve command template
 command: |
     vllm serve google/medgemma-27b-it \
       --dtype bfloat16 \
-      --max-model-len {max_model_len} \
       --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-model-len {max_model_len} \
       --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
       --port {port} \
       --host {host} \
       --load-format fastsafetensors \
       --enable-prefix-caching \
+      --enable-chunked-prefill \
       -tp {tensor_parallel} \
       --distributed-executor-backend ray
