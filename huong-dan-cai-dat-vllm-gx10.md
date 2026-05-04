@@ -1,26 +1,37 @@
-# Hướng dẫn cài đặt vLLM & 3 Model AI trên cụm 2 máy ASUS GX10
+# Hướng dẫn cài đặt vLLM & 3 Model AI trên cụm 2 máy ASUS Ascent GX10
 
-> **Môi trường:** NVIDIA DGX OS (Ubuntu-based) · ARM aarch64 · GPU Blackwell GB10 · 128GB Unified Memory/node
-> **Mạng nội bộ:** Node 1 `192.168.100.10/24` ↔ Node 2 `192.168.100.11/24` qua cáp QSFP 200G
-> **Models:** MedGemma 27B · MedGemma 4B · Llama 4 Scout (chạy song song)
-> **Tài liệu tham khảo:** [NVIDIA DGX Spark User Guide](https://docs.nvidia.com/dgx/dgx-spark/index.html) · [DGX OS 7 User Guide](https://docs.nvidia.com/dgx/dgx-os-7-user-guide/) · [NVIDIA Spark Playbooks](https://github.com/NVIDIA/dgx-spark-playbooks)
+> **Sản phẩm:** ASUS Ascent GX10 · GPU NVIDIA Blackwell GB10 · ARM v9.2-A · 128GB LPDDR5x Unified Memory/node
+> **Hệ điều hành:** NVIDIA DGX™ Base OS (Ubuntu Linux) — cài sẵn, OS duy nhất được hỗ trợ chính thức
+> **Mạng nội bộ:** Node 1 `192.168.100.10/24` ↔ Node 2 `192.168.100.11/24` qua NVIDIA ConnectX-7 200G
+> **Models:** MedGemma 27B-IT · MedGemma 1.5 4B · Llama 4 Scout (chạy song song)
+> **Tài liệu tham khảo:** [ASUS Ascent GX10](https://www.asus.com/vn/networking-iot-servers/desktop-ai-supercomputer/ultra-small-ai-supercomputers/asus-ascent-gx10/) · [ASUS FAQ GX10](https://www.asus.com/support/faq/1056142/) · [NVIDIA DGX Spark Playbooks](https://github.com/NVIDIA/dgx-spark-playbooks)
 
 ---
 
-## Đặc điểm kỹ thuật hệ thống ASUS GX10
+## Thông số kỹ thuật ASUS Ascent GX10
 
-ASUS GX10 chạy trên nền tảng NVIDIA DGX Spark với các đặc điểm sau:
+> **Nguồn:** [ASUS Ascent GX10 Tech Specs](https://www.asus.com/vn/networking-iot-servers/desktop-ai-supercomputer/ultra-small-ai-supercomputers/asus-ascent-gx10/techspec/)
 
 | Thành phần | Thông số |
 |---|---|
-| **OS** | NVIDIA DGX OS — driver, CUDA và container toolkit được cài sẵn và quản lý bởi NVIDIA |
-| **Driver** | Dòng **580/590-open** — phiên bản dành riêng cho kiến trúc Blackwell GB10 |
-| **CUDA** | Phiên bản **13.x** — Blackwell GB10 (sm_121) yêu cầu CUDA 13 trở lên |
-| **Memory** | 128GB **unified** — CPU và GPU dùng chung một vùng bộ nhớ duy nhất |
-| **nvidia-smi** | Báo "Memory-Usage: Not Supported" là hành vi bình thường của unified memory |
+| **Tên sản phẩm** | ASUS Ascent GX10 |
+| **CPU** | ARM v9.2-A (GB10 Superchip) |
+| **GPU** | NVIDIA Blackwell GPU (GB10, integrated) |
+| **Memory** | 128 GB LPDDR5x — unified system memory (CPU+GPU dùng chung) |
+| **Storage** | 1TB M.2 NVMe PCIe 4.0 SSD |
+| **Mạng** | 1x NVIDIA ConnectX-7 SmartNIC (200G QSFP) · 1x 10G LAN · Wi-Fi 7 · Bluetooth 5.4 |
+| **Cổng I/O** | 3x USB 3.2 Gen 2x2 Type-C · 1x USB-C PD 180W · 1x HDMI 2.1 · 1x Kensington Lock |
+| **Nguồn** | 240W Adapter |
+| **Kích thước** | 150 x 150 x 51 mm · 1.48 kg |
+| **OS** | Ubuntu Linux (NVIDIA DGX™ Base OS) — OS duy nhất được kiểm tra và hỗ trợ chính thức |
+| **Hiệu năng AI** | 1 petaFLOP (FP4) |
+| **Driver** | Dòng 580/590-open — dành riêng cho Blackwell GB10 |
+| **CUDA** | Phiên bản 13.x — GB10 (sm_121) yêu cầu CUDA 13 trở lên |
+| **nvidia-smi** | Báo "Memory-Usage: Not Supported" — hành vi bình thường của unified memory |
 | **vLLM** | Yêu cầu wheel CUDA 13 / aarch64 — không dùng pip install thông thường |
 | **Swap** | Phải tắt trước khi vận hành — OOM trên unified memory có thể làm treo toàn bộ hệ thống |
 | **Cập nhật hệ thống** | Thực hiện qua DGX Dashboard (`http://localhost:11000`) — không dùng `apt upgrade` |
+| **Cluster** | Hỗ trợ kết nối tối đa 2 node qua QSFP 200G trực tiếp, hoặc nhiều hơn qua 200G switch |
 
 ---
 
@@ -273,9 +284,9 @@ Khi mở rộng lên 3 node trở lên, cần bổ sung L2 switch 200G (ví dụ
 
 | Model | Params | Bộ nhớ (FP8) | Node chạy |
 |---|---|---|---|
-| MedGemma 27B | 27B | ~27 GB | Node 1 + Node 2 (tensor split) |
-| Llama 4 Scout | 17B active / 109B MoE | ~40 GB | Node 2 |
-| MedGemma 4B | 4B | ~4 GB | Node 1 |
+| MedGemma 27B-IT | 27B | ~27 GB | Node 1 + Node 2 (tensor split) |
+| Llama 4 Scout | 17B active / 109B MoE | ~50 GB (sau FP8) / ~202 GB (checkpoint gốc) | Node 1 + Node 2 (tp=2, Ray) |
+| MedGemma 1.5 4B | 4B | ~4 GB | Node 1 |
 | **Tổng** | | **~71 GB** | Tổng 256 GB — đủ dư |
 
 128GB trên mỗi máy là bộ nhớ dùng chung giữa CPU và GPU. Khi hệ thống hết bộ nhớ, toàn bộ máy có thể bị treo thay vì chỉ crash một process. Blackwell GB10 có Tensor Core thế hệ 5 với hardware accelerator riêng cho FP8 và FP4, giúp tăng throughput ~2x so với FP16.
@@ -289,15 +300,15 @@ Khi mở rộng lên 3 node trở lên, cần bổ sung L2 switch 200G (ví dụ
 │  Node 1 – Head  (192.168.100.10)                                     │
 │                                                                      │
 │  ● Ray Head Node  (port 6379)                                        │
-│  ● MedGemma 27B   (port 8000)  ──── tensor-parallel ────┐           │
-│  ● MedGemma 4B    (port 8002)                            │           │
+│  ● MedGemma 27B-IT   (port 8000)  ──── tensor-parallel ────┐           │
+│  ● MedGemma 1.5 4B    (port 8002)                            │           │
 └─────────────────────────────────────────────────────────┼───────────┘
                    200G QSFP ConnectX-7 / RoCE            │
 ┌─────────────────────────────────────────────────────────┼───────────┐
 │  Node 2 – Worker  (192.168.100.11)                       │           │
 │                                                          │           │
 │  ● Ray Worker Node                                       │           │
-│  ● MedGemma 27B   (nhận tensor từ Node 1) ───────────────┘           │
+│  ● MedGemma 27B-IT   (nhận tensor từ Node 1) ───────────────┘           │
 │  ● Llama 4 Scout  (port 8001)                                        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -528,12 +539,12 @@ python3 -c "import vllm; print('vLLM version:', vllm.__version__)"
 ### 7.1 Mở port cần thiết (cả 2 máy)
 
 ```bash
-sudo ufw allow 6379         # Ray Head
-sudo ufw allow 8265         # Ray Dashboard
-sudo ufw allow 8000         # MedGemma 27B
-sudo ufw allow 8001         # Llama 4 Scout
-sudo ufw allow 8002         # MedGemma 4B
-sudo ufw allow 10000:20000/tcp  # Ray worker communication ports
+sudo ufw allow 6379
+sudo ufw allow 8265
+sudo ufw allow 8000
+sudo ufw allow 8001
+sudo ufw allow 8002
+sudo ufw allow 10000:20000/tcp
 ```
 
 ### 7.2 Node 1 – Head Node
@@ -581,16 +592,16 @@ docker exec ray-head ray status
 
 Cần HuggingFace Token và đã accept license (xem mục 10). Thứ tự load: 4B → 27B → Scout.
 
-### 8.1 MedGemma 4B – Node 1, port 8002
+### 8.1 MedGemma 1.5 4B – Node 1, port 8002
 
 ```bash
 docker run -d \
   --runtime nvidia --gpus all --network host \
-  --name medgemma-4b --restart unless-stopped \
+  --name medgemma-1.5-4b --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
-  google/medgemma-4b-it \
+  google/medgemma-1.5-4b-it \
     --tensor-parallel-size 1 \
     --dtype auto \
     --quantization fp8 \
@@ -603,7 +614,7 @@ Kiểm tra inference hoạt động trước khi load model tiếp theo.
 
 > **Lưu ý image entrypoint:** `vllm/vllm-openai` đã có sẵn entrypoint là `vllm serve` — chỉ truyền thẳng tên model và các tham số, không lặp lại `vllm serve` trong lệnh docker run.
 
-### 8.2 MedGemma 27B – Span 2 node, port 8000
+### 8.2 MedGemma 27B-IT – Span 2 node, port 8000
 
 ```bash
 docker run -d \
@@ -612,7 +623,7 @@ docker run -d \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
-  google/medgemma-27b \
+  google/medgemma-27b-it \
     --tensor-parallel-size 2 \
     --dtype auto \
     --quantization fp8 \
@@ -623,8 +634,17 @@ docker run -d \
 
 `--tensor-parallel-size 2` — Ray tự phân phối tensor sang Node 2 qua kết nối 200G.
 
-### 8.3 Llama 4 Scout – Node 2, port 8001
+### 8.3 Llama 4 Scout – Span 2 node, port 8001
 
+Llama 4 Scout có checkpoint ~202GB — vượt quá 128GB của 1 node. Bắt buộc phải span 2 node qua Ray cluster. Phải khởi động Ray Head và Ray Worker (Bước 5) trước khi chạy lệnh này.
+
+**Bước 1 — Xác nhận Ray cluster đã có 2 node:**
+```bash
+docker exec ray-head ray status
+# → phải thấy 2 nodes active
+```
+
+**Bước 2 — Chạy Llama 4 Scout trên Node 1:**
 ```bash
 docker run -d \
   --runtime nvidia --gpus all --network host \
@@ -633,12 +653,24 @@ docker run -d \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
   meta-llama/Llama-4-Scout-17B-16E-Instruct \
-    --tensor-parallel-size 1 \
+    --tensor-parallel-size 2 \
+    --distributed-executor-backend ray \
     --dtype auto \
     --quantization fp8 \
     --kv-cache-dtype fp8 \
     --max-model-len 8192 \
     --port 8001
+```
+
+> `--tensor-parallel-size 2` + `--distributed-executor-backend ray` → Ray tự phân phối model sang Node 2 qua kết nối 200G.
+
+> **FP8 Cache:** Lần đầu chạy, vLLM sẽ convert weights sang FP8 (~10-15 phút). Các lần chạy sau sẽ load từ cache, không cần convert lại.
+
+**Theo dõi tiến trình:**
+```bash
+docker logs -f llama4-scout
+# Chờ đến khi thấy:
+# INFO: Uvicorn running on http://0.0.0.0:8001
 ```
 
 ---
@@ -648,9 +680,9 @@ docker run -d \
 ### 9.1 Kiểm tra models đã load
 
 ```bash
-curl http://192.168.100.10:8000/v1/models   # MedGemma 27B
+curl http://192.168.100.10:8000/v1/models   # MedGemma 27B-IT
 curl http://192.168.100.10:8001/v1/models   # Llama 4 Scout
-curl http://192.168.100.10:8002/v1/models   # MedGemma 4B
+curl http://192.168.100.10:8002/v1/models   # MedGemma 1.5 4B
 ```
 
 ### 9.2 Test inference
@@ -659,7 +691,7 @@ curl http://192.168.100.10:8002/v1/models   # MedGemma 4B
 curl http://192.168.100.10:8002/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "google/medgemma-4b-it",
+    "model": "google/medgemma-1.5-4b-it",
     "messages": [{"role": "user", "content": "Triệu chứng của viêm phổi là gì?"}],
     "max_tokens": 200
   }'
@@ -675,7 +707,7 @@ free -h
 # DGX Dashboard — giao diện đồ họa đầy đủ
 # http://localhost:11000
 
-docker logs -f medgemma-4b
+docker logs -f medgemma-1.5-4b
 docker logs -f medgemma-27b
 docker logs -f llama4-scout
 ```
@@ -688,8 +720,8 @@ docker logs -f llama4-scout
 
 Cả 3 model là gated model, phải accept license trước khi download:
 
-- MedGemma 27B → https://huggingface.co/google/medgemma-27b
-- MedGemma 4B → https://huggingface.co/google/medgemma-4b-it
+- MedGemma 27B-IT → https://huggingface.co/google/medgemma-27b-it
+- MedGemma 1.5 4B → https://huggingface.co/google/medgemma-1.5-4b-it
 - Llama 4 Scout → https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct
 - Tạo token → https://huggingface.co/settings/tokens
 
@@ -718,8 +750,8 @@ Khi chạy `docker run`, biến `$HUGGING_FACE_HUB_TOKEN` được truyền vào
 4. Xác nhận mạng 200G (ping + ib_write_bw)
 5. Khởi động Ray Head  (Node 1)
 6. Khởi động Ray Worker (Node 2)
-7. Load MedGemma 4B   → test curl
-8. Load MedGemma 27B  → test curl
+7. Load MedGemma 1.5 4B   → test curl
+8. Load MedGemma 27B-IT  → test curl
 9. Load Llama 4 Scout → test curl
 ```
 
@@ -748,7 +780,7 @@ Khi Docker image không tương thích CUDA 13:
 ```bash
 source ~/.venv-vllm/bin/activate
 
-vllm serve google/medgemma-4b-it \
+vllm serve google/medgemma-1.5-4b-it \
   --dtype auto \
   --quantization fp8 \
   --kv-cache-dtype fp8 \
@@ -778,131 +810,122 @@ vllm serve google/medgemma-4b-it \
 
 ## 12. Recovery Guide — Khôi phục máy về factory state
 
-> **Tài liệu tham khảo:** [NVIDIA DGX Spark System Recovery](https://docs.nvidia.com/dgx/dgx-spark/system-recovery.html)
+> **Nguồn chính thức:** [ASUS FAQ — How to Update ASUS Ascent GX10 OS](https://www.asus.com/us/support/faq/1056213/)
 
-Quy trình này áp dụng cho DGX Spark Founders Edition và OEM variant bao gồm ASUS GX10. Recovery sẽ xóa toàn bộ dữ liệu trên SSD và khôi phục hệ thống về trạng thái factory.
+Recovery sẽ xóa toàn bộ dữ liệu trên SSD và cài lại DGX OS về trạng thái factory. Có 3 phương án tùy tình trạng máy.
 
 ---
 
-### 12.1 Chuẩn bị
+### 12.1 Kiểm tra phiên bản OS hiện tại (qua BIOS)
+
+```
+1. Giữ [Del] khi khởi động → vào BIOS
+2. Vào Advanced → Firmware Version Information
+3. Xem OS version hiện tại
+```
+
+---
+
+### 12.2 Phương án 1 — Cập nhật qua DGX Dashboard (máy còn vào được)
+
+```
+1. Đăng nhập hệ thống GX10
+2. Mở Ubuntu Start Menu
+3. Tìm và mở NVIDIA DGX Dashboard
+4. Đăng nhập bằng tài khoản user hệ thống
+5. Vào Settings → Update → Click "Update Now"
+6. Chờ cập nhật hoàn tất
+```
+
+Hoặc truy cập trực tiếp qua trình duyệt:
+```
+http://localhost:11000
+```
+
+---
+
+### 12.3 Phương án 2 — Cập nhật firmware qua Terminal (offline)
+
+Tải gói firmware từ [trang support ASUS](https://www.asus.com/vn/networking-iot-servers/desktop-ai-supercomputer/ultra-small-ai-supercomputers/asus-ascent-gx10/helpdesk_download/), giải nén rồi chạy:
+
+```bash
+# SOC Firmware
+sudo su
+./capsule_update.sh bsp_v11_socfw302_bios_0101_ec_2.66.3.3_signed.cap
+
+# EC Firmware
+./capsule_update.sh ec_2.66.3.3_signed.cap
+
+# PD Firmware (cần reboot và chạy lại 2 lần)
+./capsule_update.sh usbpd_50.cap
+# Reboot thủ công từ Ubuntu
+./capsule_update.sh usbpd_50.cap
+
+# TPM Firmware
+./capsule_update.sh tpm_7.2.4.1.cap
+```
+
+---
+
+### 12.4 Phương án 3 — Cài lại OS qua USB (máy không vào được OS)
+
+#### Chuẩn bị
 
 | Thiết bị | Yêu cầu |
 |---|---|
-| USB flash drive | 16GB trở lên — toàn bộ dữ liệu trên USB sẽ bị xóa |
-| Bàn phím | Cắm trực tiếp qua cổng USB — bàn phím Bluetooth không hoạt động trong UEFI |
+| USB flash drive | 16GB trở lên — dữ liệu trên USB sẽ bị xóa |
+| Bàn phím | Cắm trực tiếp qua cổng USB |
 | Màn hình | Cắm qua HDMI vào GX10 |
-| Máy tính phụ | Windows / Linux / macOS để tải image và tạo USB |
+| Máy tính phụ | Để tải ISO và tạo USB |
 
----
+#### Bước 1 — Tải ISO từ ASUS
 
-### 12.2 Bước 1 — Tải Recovery Image
-
-Tải file từ NVIDIA (không cần tài khoản enterprise):
-
-```
-https://developer.nvidia.com/downloads/dgx-spark/dgx-spark-recovery-image-1.120.38.tar.gz
-```
-
----
-
-### 12.3 Bước 2 — Tạo USB Recovery
-
-```powershell
-# Windows — giải nén
-tar -xzf dgx-spark-recovery-image-1.120.38.tar.gz
-cd dgx-spark-recovery-image-1.120.38
-
-# Chạy với quyền Administrator
-.\CreateUSBKey.cmd
-```
-
-```bash
-# Linux
-sudo bash CreateUSBKey.sh
-
-# macOS
-sudo bash CreateUSBKeyMacOS.sh
-```
-
----
-
-### 12.4 Bước 3 — Vào UEFI
-
-1. Rút tất cả USB storage khác khỏi GX10
-2. Cắm USB recovery vào GX10
-3. Giữ nút nguồn 10 giây để tắt máy hoàn toàn, bật lại
-4. Nhấn giữ `Esc` hoặc `Del` ngay từ giây đầu khi máy khởi động
-
-Nếu dùng bàn phím Mac, chỉ dùng phím `Esc`.
-
----
-
-### 12.5 Bước 4 — Restore UEFI Defaults (lần vào UEFI thứ 1)
+Vào trang support chính thức của ASUS, chọn Linux OS, tải:
+- **USB Formatting Utility** (công cụ ghi ISO ra USB)
+- **ISO file** (file cài đặt DGX OS)
 
 ```
-→ tab "Save & Exit"
-→ Restore Defaults → Yes
-→ Save Changes and Reset
-  [Nhấn giữ Esc/Del ngay khi máy reboot để vào UEFI lần 2]
+https://www.asus.com/vn/networking-iot-servers/desktop-ai-supercomputer/
+ultra-small-ai-supercomputers/asus-ascent-gx10/helpdesk_download/
+```
+
+#### Bước 2 — Ghi ISO ra USB
+
+Dùng USB Formatting Utility vừa tải để ghi ISO vào USB drive.
+
+#### Bước 3 — Vào BIOS
+
+```
+1. Cắm USB vào GX10
+2. Bật máy, giữ [Del] ngay từ đầu để vào BIOS
+3. Vào Boot → Boot Option #1 → UEFI: USB USB Hard Drive, Partition 1
+4. Nhấn [F4] để Save and Exit
+```
+
+#### Bước 4 — Cài đặt OS
+
+```
+[Menu] Chọn "DGX Spark Installation Options"
+       → Chọn "Install DGX OS 7.x for DGX Spark"
+       → Chờ cài đặt hoàn tất
+```
+
+#### Bước 5 — First Boot OOBE
+
+```
+1.  Click "Get Started"
+2.  Chọn Language và Timezone → Continue
+3.  Chọn Keyboard Layout → Continue
+4.  Accept license → Continue
+5.  Tạo Username và Password → Continue
+6.  Chọn tùy chọn NVIDIA improvement → Continue
+7.  Kết nối Wi-Fi hoặc cắm LAN 10G
+8.  Chờ cài đặt hoàn tất (~10-15 phút)
 ```
 
 ---
 
-### 12.6 Bước 5 — Bật Secure Boot (lần vào UEFI thứ 2)
-
-```
-→ tab "Security"
-→ Xác nhận Secure Boot = Enabled
-→ Restore Factory Keys
-→ Save Changes and Reset
-  [Nhấn giữ Esc/Del ngay khi máy reboot để vào UEFI lần 3]
-```
-
----
-
-### 12.7 Bước 6 — Boot từ USB (lần vào UEFI thứ 3)
-
-```
-→ tab "Save & Exit"
-→ Boot Override → chọn USB drive
-→ Enter
-```
-
----
-
-### 12.8 Bước 7 — Thực hiện Recovery
-
-```
-[Welcome]   → Enter để tiếp tục
-[Warning]   → START RECOVERY để xác nhận xóa SSD
-[Progress]  → Chờ hoàn tất, không tắt máy
-[Complete]  → Xem log nếu cần, tiếp tục
-[Restart]   → Rút USB ra → Enter để khởi động lại
-```
-
----
-
-### 12.9 Bước 8 — First Boot sau Recovery
-
-```
-1. Chọn ngôn ngữ và timezone
-2. Chọn keyboard layout
-3. Accept license terms
-4. Tạo username và password
-5. Cắm LAN 10G để có kết nối ổn định
-6. Chờ hệ thống tải updates (~10 phút)
-```
-
-Kiểm tra sau khi setup xong:
-
-```bash
-nvidia-smi | grep "Driver Version"
-# → 580.x hoặc 590.x
-```
-
----
-
-### 12.10 Checklist sau Recovery
+### 12.5 Checklist sau Recovery
 
 ```bash
 # Tắt swap
@@ -912,8 +935,9 @@ sudo sed -i '/swap/s/^/#/' /etc/fstab
 # Xem interface ConnectX-7 để cấu hình lại mạng 200G
 ip link show
 
-# Cập nhật hệ thống qua DGX Dashboard
-# http://localhost:11000
+# Kiểm tra driver
+nvidia-smi | grep "Driver Version"
+# → 580.x hoặc 590.x
 
 # Lưu HuggingFace token
 echo 'export HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxx' >> ~/.bashrc
@@ -924,14 +948,15 @@ Sau đó thực hiện lại từ Mục 0 trong tài liệu này.
 
 ---
 
-### 12.11 Liên hệ hỗ trợ
+### 12.6 Liên hệ hỗ trợ
 
 | | Link |
 |---|---|
-| NVIDIA Support Portal | https://www.nvidia.com/en-us/support/dgx-spark/ |
-| NVIDIA Developer Forums | https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/719 |
-| Tài liệu Recovery | https://docs.nvidia.com/dgx/dgx-spark/system-recovery.html |
+| ASUS Support GX10 | https://www.asus.com/vn/support/ |
+| ASUS FAQ GX10 | https://www.asus.com/support/faq/1056142/ |
+| ASUS GX10 GitHub Discussions | https://github.com/orgs/asus-ascent-gx10/discussions |
+| NVIDIA Developer Forums (GB10) | https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/719 |
 
 ---
 
-*Phiên bản: 04/2026 · Tài liệu kỹ thuật nội bộ · Dựa trên NVIDIA DGX Spark User Guide và NVIDIA DGX OS 7 User Guide*
+*Phiên bản: 05/2026 · Tài liệu kỹ thuật nội bộ · Dựa trên ASUS Ascent GX10 Official Documentation, NVIDIA DGX Spark User Guide và NVIDIA DGX OS 7 User Guide*
