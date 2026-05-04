@@ -550,41 +550,50 @@ sudo ufw allow 10000:20000/tcp
 ### 7.2 Node 1 – Head Node
 
 ```bash
+docker stop ray-head && docker rm ray-head
+
 docker run -d \
-  --runtime nvidia \
-  --gpus all \
-  --network host \
-  --name ray-head \
-  --restart unless-stopped \
+  --runtime nvidia --gpus all --network host \
+  --name ray-head --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
+  --entrypoint /bin/bash \
   vllm/vllm-openai:latest \
-  ray start --head \
-    --node-ip-address=192.168.100.10 \
-    --port=6379 \
-    --block
+  -c "pip install ray -q && ray start --head --node-ip-address=192.168.100.10 --port=6379 --block"
 ```
 
 ### 7.3 Node 2 – Worker Node
 
 ```bash
+docker stop ray-worker && docker rm ray-worker
+
 docker run -d \
-  --runtime nvidia \
-  --gpus all \
-  --network host \
-  --name ray-worker \
-  --restart unless-stopped \
+  --runtime nvidia --gpus all --network host \
+  --name ray-worker --restart unless-stopped \
+  --entrypoint /bin/bash \
   vllm/vllm-openai:latest \
-  ray start \
-    --address=192.168.100.10:6379 \
-    --block
+  -c "pip install ray -q && ray start --address=192.168.100.10:6379 --block"
 ```
 
 ### 7.4 Xác nhận cluster
 
 ```bash
+docker logs ray-head
+
 docker exec ray-head ray status
-# Kỳ vọng: 2 nodes active
 ```
+
+Kết quả mong đợi:
+```
+Active:
+ 1 node_xxxxxxxxxxxx
+ 1 node_xxxxxxxxxxxx
+Resources:
+ 0.0/40.0 CPU
+ 0.0/2.0 GPU
+ 0B/224.53GiB memory
+```
+
+Phải thấy **2 nodes active** và **2 GPU** trước khi tiếp tục.
 
 ---
 
@@ -595,9 +604,11 @@ Cần HuggingFace Token và đã accept license (xem mục 10). Thứ tự load:
 ### 8.1 MedGemma 1.5 4B – Node 1, port 8002
 
 ```bash
+docker stop medgemma-4b && docker rm medgemma-4b
+
 docker run -d \
   --runtime nvidia --gpus all --network host \
-  --name medgemma-1.5-4b --restart unless-stopped \
+  --name medgemma-4b --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
   vllm/vllm-openai:latest \
@@ -612,27 +623,27 @@ docker run -d \
 
 Kiểm tra inference hoạt động trước khi load model tiếp theo.
 
-> **Lưu ý image entrypoint:** `vllm/vllm-openai` đã có sẵn entrypoint là `vllm serve` — chỉ truyền thẳng tên model và các tham số, không lặp lại `vllm serve` trong lệnh docker run.
-
-### 8.2 MedGemma 27B-IT – Span 2 node, port 8000
+### 8.2 MedGemma 27B – Span 2 node, port 8000
 
 ```bash
+docker stop medgemma-27b && docker rm medgemma-27b
+
 docker run -d \
   --runtime nvidia --gpus all --network host \
   --name medgemma-27b --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+  --entrypoint /bin/bash \
   vllm/vllm-openai:latest \
-  google/medgemma-27b-it \
+  -c "pip install ray -q && vllm serve google/medgemma-27b-it \
     --tensor-parallel-size 2 \
+    --distributed-executor-backend ray \
     --dtype auto \
     --quantization fp8 \
     --kv-cache-dtype fp8 \
     --max-model-len 8192 \
-    --port 8000
+    --port 8000"
 ```
-
-`--tensor-parallel-size 2` — Ray tự phân phối tensor sang Node 2 qua kết nối 200G.
 
 ### 8.3 Llama 4 Scout – Span 2 node, port 8001
 
@@ -646,20 +657,23 @@ docker exec ray-head ray status
 
 **Bước 2 — Chạy Llama 4 Scout trên Node 1:**
 ```bash
+docker stop llama4-scout && docker rm llama4-scout
+
 docker run -d \
   --runtime nvidia --gpus all --network host \
   --name llama4-scout --restart unless-stopped \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+  --entrypoint /bin/bash \
   vllm/vllm-openai:latest \
-  meta-llama/Llama-4-Scout-17B-16E-Instruct \
+  -c "pip install ray -q && vllm serve meta-llama/Llama-4-Scout-17B-16E-Instruct \
     --tensor-parallel-size 2 \
     --distributed-executor-backend ray \
     --dtype auto \
     --quantization fp8 \
     --kv-cache-dtype fp8 \
     --max-model-len 8192 \
-    --port 8001
+    --port 8001"
 ```
 
 > `--tensor-parallel-size 2` + `--distributed-executor-backend ray` → Ray tự phân phối model sang Node 2 qua kết nối 200G.
