@@ -15,6 +15,25 @@ Thông tin thiết bị xem tại: [ASUS-ASCENT-GX10](https://www.asus.com/vn/ne
 
 - Dây kết nối tương thích (DAC / Fiber)
 
+### 1.2 Kiểm tra nhanh hệ thống trước khi triển khai
+
+Trước khi cài đặt cluster, nên kiểm tra tối thiểu các thông tin sau trên từng node:
+
+```bash
+lsb_release -a
+uname -a
+free -h
+df -h
+nvidia-smi
+ip a
+```
+
+Mục tiêu kiểm tra:
+
+- OS đúng phiên bản và đồng nhất giữa các node
+- RAM, disk và GPU đều nhận đủ
+- Network interface đã lên và sẵn sàng gán IP tĩnh
+
 ---
 
 ## 2. Cài đặt hệ điều hành
@@ -323,6 +342,24 @@ nvidia-smi
 
 ```bash
 ibstat
+```
+
+---
+
+### 8.4 Benchmark / kiểm tra tải với llama-benchy
+
+Khi cần đo tốc độ sinh token hoặc so sánh giữa các node, có thể dùng:
+
+- [llama-benchy](https://github.com/eugr/llama-benchy)
+
+Gợi ý sử dụng:
+
+- chạy benchmark sau khi model đã sẵn sàng phục vụ
+- ghi nhận `tokens/sec`, latency và độ ổn định khi tăng concurrency
+- dùng cùng một prompt và cùng tham số để so sánh giữa các lần test
+
+```bash
+uv run llama-benchy --concurrency 8 --base-url http://192.168.18.91:8000/v1 --model google/medgemma-27b-it
 ```
 
 ---
