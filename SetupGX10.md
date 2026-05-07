@@ -21,6 +21,7 @@ docker run -d \
   -e VLLM_HOST_IP=192.168.100.10 \
   -e NCCL_SOCKET_IFNAME=enP2p1s0f1np1 \
   -e GLOO_SOCKET_IFNAME=enP2p1s0f1np1 \
+  -e HUGGING_FACE_HUB_TOKEN=hf_xxx \
   --entrypoint /bin/bash \
   vllm/vllm-openai:latest \
   -c "
@@ -30,6 +31,8 @@ docker run -d \
       --port=6379 \
       --block
   "
+
+docker logs -f ray-head
 ```
 
 ---
@@ -49,6 +52,7 @@ docker run -d \
   -e VLLM_HOST_IP=192.168.100.9 \
   -e NCCL_SOCKET_IFNAME=enP2p1s0f1np1 \
   -e GLOO_SOCKET_IFNAME=enP2p1s0f1np1 \
+  -e HUGGING_FACE_HUB_TOKEN=hf_xxx \
   --entrypoint /bin/bash \
   vllm/vllm-openai:latest \
   -c "
@@ -58,6 +62,8 @@ docker run -d \
       --node-ip-address=192.168.100.9 \
       --block
   "
+
+docker logs -f ray-worker
 ```
 
 ---
@@ -96,7 +102,8 @@ docker exec ray-head bash -c "
   export NCCL_DEBUG=INFO
 
   vllm serve meta-llama/Llama-4-Scout-17B-16E-Instruct \
-    --tensor-parallel-size 2 \
+    --tensor-parallel-size 1 \
+    --pipeline-parallel-size 2 \
     --distributed-executor-backend ray \
     --dtype auto \
     --quantization fp8 \
