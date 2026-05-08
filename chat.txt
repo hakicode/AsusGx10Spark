@@ -34,8 +34,10 @@ cd /home/lvai/spark-vllm-docker/
 ./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup
 tmux attach -t job-recipe-2
 
-# START
+# START -> https://github.com/eugr/spark-vllm-docker
+./run-recipe.sh Llama-4-Scout-17B-16E-Instruct-bf16 --setup
 ./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup
+./run-recipe.sh MedGemma-27b-it-bf16 --setup
 ./run-recipe.sh MedGemma-27b-it-bf16 --setup
 ./run-recipe.sh Baichuan-M2-32B --setup
 ./run-recipe.sh gemma4-26b-a4b --setup

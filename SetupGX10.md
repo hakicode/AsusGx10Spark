@@ -108,7 +108,8 @@ docker exec ray-head bash -c "
     --dtype auto \
     --quantization fp8 \
     --kv-cache-dtype fp8 \
-    --max-model-len 8192 \
+    --max-model-len 4096 \
+    --gpu-memory-utilization 0.9 \
     --port 8001
 "
 ```
