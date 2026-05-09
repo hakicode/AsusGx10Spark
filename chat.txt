@@ -44,3 +44,5 @@ tmux attach -t job-recipe-2
 
 # STOP
 ./launch-cluster.sh --name vllm_node_llama4scout stop
+./launch-cluster.sh --name vllm_node_27b stop
+./launch-cluster.sh --name vllm_node_4b stop
