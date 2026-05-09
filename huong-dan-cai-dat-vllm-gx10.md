@@ -49,14 +49,16 @@
 
 ## I. Phân tích tài nguyên
 
-### 1. Ước tính bộ nhớ (FP8) — Unified Memory Architecture
+### 1. Bộ nhớ thực tế vận hành (FP8)
 
-| Model              | Params | Bộ nhớ (FP8) | Node chạy                      |
-| ------------------ | ------ | ------------ | ------------------------------ |
-| MedGemma 27B-IT    | 27B    | ~27 GB       | Node 1 + Node 2 (tensor split) |
-| MedGemma 1.5 4B-IT | 4B     | ~4 GB        | Node 1                         |
-| Llama 4 Scout 17B  | 17B    | ~50 GB       | Node 2                         |
-| **Tổng**           |        | **~81 GB**   | Phân tải trên 2 × 128 GB       |
+| Model              | Kiến trúc                              | Params (active / total) | Bộ nhớ lý thuyết (FP8) | Bộ nhớ thực tế       | Mức dùng GPU | Cấu hình Ray        | Node chạy              |
+| ------------------ | -------------------------------------- | ----------------------- | ----------------------- | -------------------- | ------------ | ------------------- | ---------------------- |
+| MedGemma 27B-IT    | Gemma 3 27B (dense)                    | 27B / 27B               | ~27 GB                  | ~32 GB / node        | 0.36         | pp=2 (2 nodes)      | Node 1 + Node 2        |
+| MedGemma 1.5 4B-IT | PaliGemma 2 (SigLIP 400M + Gemma 3B)  | ~3.4B / ~3.4B           | ~3.5 GB                 | ~10 GB               | 0.1          | single node         | Node 1                 |
+| Llama 4 Scout 17B  | MoE 16 experts (NVIDIA FP8 pre-quant) | 17B / 109B              | ~54 GB                  | ~70 GB / node        | 0.5          | pp=2 (2 nodes) ¹    | Node 1 + Node 2        |
+| **Tổng**           |                                        |                         | **~84.5 GB**            | **~174 GB**          |              |                     | 2 × 128 GB             |
+
+¹ Llama 4 Scout không khởi động được trên 1 node đơn — bắt buộc pipeline-parallel 2 nodes.
 
 128 GB trên mỗi máy là bộ nhớ dùng chung giữa CPU và GPU. Khi hệ thống hết bộ nhớ, toàn bộ máy có thể bị treo thay vì chỉ crash một process. Blackwell GB10 có Tensor Core thế hệ 5 với hardware accelerator riêng cho FP8 và FP4, giúp tăng throughput ~2× so với FP16.
 
@@ -406,17 +408,19 @@ command: |
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --port {port} \
-      --host {host}
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching
 ```
 
 ---
 
-#### `recipes/MedGemma-27b-it-bf16.yaml`
+#### `recipes/MedGemma-27b-it-bf16-ray.yaml`
 
 ```yaml
 recipe_version: "1"
 name: MedGemma-27B-IT
-description: vLLM serving MedGemma-27B-IT (bfloat16 + FP8 quantization, tensor-parallel 2 nodes)
+description: vLLM serving MedGemma-27B-IT (bfloat16)
 
 model: google/medgemma-27b-it
 
@@ -433,11 +437,12 @@ mods: []
 defaults:
     port: 8001
     host: 0.0.0.0
-    gpu_memory_utilization: 0.7
-    max_model_len: 65536
-    max_num_batched_tokens: 98304
-    max_num_seqs: 8
-    tensor_parallel: 2
+    gpu_memory_utilization: 0.36
+    max_model_len: 32768
+    max_num_batched_tokens: 49152
+    max_num_seqs: 2
+    tensor_parallel: 1
+    pipeline_parallel: 2
 
 env: {}
 
@@ -457,12 +462,14 @@ command: |
       --enable-chunked-prefill \
       --enable-auto-tool-choice \
       --tool-call-parser pythonic \
-      -tp {tensor_parallel} --distributed-executor-backend ray
+      --tensor-parallel-size {tensor_parallel} \
+      --pipeline-parallel-size {pipeline_parallel} \
+      --distributed-executor-backend ray
 ```
 
 ---
 
-#### `recipes/Llama-4-Scout-17B-16E-Instruct-fp8.yaml`
+#### `recipes/Llama-4-Scout-17B-16E-Instruct-fp8-ray.yaml`
 
 ```yaml
 recipe_version: "1"
@@ -484,35 +491,35 @@ mods: []
 defaults:
     port: 8000
     host: 0.0.0.0
-    gpu_memory_utilization: 0.9
+    gpu_memory_utilization: 0.5
     max_model_len: 8192
-    max_num_batched_tokens: 8192
+    max_num_batched_tokens: 4096
     max_num_seqs: 8
-    tensor_parallel: 2
+    tensor_parallel: 1
+    pipeline_parallel: 2
 
 env: {}
 
 command: |
     vllm serve nvidia/Llama-4-Scout-17B-16E-Instruct-FP8 \
       --dtype auto \
-      --quantization fp8 \
       --kv-cache-dtype fp8 \
-      --gpu-memory-utilization {gpu_memory_utilization} \
       --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --port {port} \
       --host {host} \
-      --load-format fastsafetensors \
-      --enable-prefix-caching \
-      -tp {tensor_parallel} --distributed-executor-backend ray
+      --tensor-parallel-size {tensor_parallel} \
+      --pipeline-parallel-size {pipeline_parallel} \
+      --distributed-executor-backend ray
 ```
 
 ---
 
 ## V. Chạy các model
 
-> Kiểm tra từng bước trước khi tiếp tục.
+> Chạy trên **Node 1**. Cờ `-d` chạy container ở chế độ nền (detached).
 
 ### Bước 1 — Discover cluster (chỉ chạy lần đầu)
 
@@ -527,53 +534,34 @@ cd ~/spark-vllm-docker
 
 ---
 
-### Bước 2 — Chạy MedGemma 27B-IT (tensor-parallel, Node 1 + Node 2)
+### Bước 2 — Start
 
 ```bash
-# Chạy trên Node 1 — Ray sẽ tự sync sang Node 2
 cd ~/spark-vllm-docker
-./run-recipe.sh MedGemma-27b-it-bf16 --setup --name=vllm_node_27b
+
+./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup --name=vllm_node_4b -d
+./run-recipe.sh MedGemma-27b-it-bf16-ray --setup --name=vllm_node_27b -d
+./run-recipe.sh Llama-4-Scout-17B-16E-Instruct-fp8-ray --setup --name=vllm_node_llama4scout -d
 ```
 
-Chờ model load xong, kiểm tra trước khi tiếp tục:
+Kiểm tra sau khi các model đã load xong:
 
 ```bash
-curl http://192.168.100.10:8001/v1/models
-# Kỳ vọng: trả về JSON có "google/medgemma-27b-it"
+curl http://192.168.100.10:8002/v1/models   # MedGemma 1.5 4B-IT
+curl http://192.168.100.10:8001/v1/models   # MedGemma 27B-IT
+curl http://192.168.100.11:8000/v1/models   # Llama 4 Scout 17B
 ```
 
 ---
 
-### Bước 3 — Chạy Llama 4 Scout 17B (Node 2)
+### Bước 3 — Stop
 
 ```bash
-# Chạy trên Node 2
 cd ~/spark-vllm-docker
-./run-recipe.sh Llama-4-Scout-17B-16E-Instruct-fp8 --setup --name=vllm_node_llama4scout
-```
 
-Kiểm tra:
-
-```bash
-curl http://192.168.100.11:8000/v1/models
-# Kỳ vọng: trả về JSON có "nvidia/Llama-4-Scout-17B-16E-Instruct-FP8"
-```
-
----
-
-### Bước 4 — Chạy MedGemma 1.5 4B-IT (Node 1)
-
-```bash
-# Chạy trên Node 1
-cd ~/spark-vllm-docker
-./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup --name=vllm_node_4b
-```
-
-Kiểm tra:
-
-```bash
-curl http://192.168.100.10:8002/v1/models
-# Kỳ vọng: trả về JSON có "google/medgemma-1.5-4b-it"
+./launch-cluster.sh --name vllm_node_llama4scout stop
+./launch-cluster.sh --name vllm_node_27b stop
+./launch-cluster.sh --name vllm_node_4b stop
 ```
 
 ---
@@ -652,7 +640,7 @@ Sau khi reboot, thực hiện lại theo thứ tự:
 
 1. Tắt swap: `sudo swapoff -a`
 2. Discover cluster: `./run-recipe.sh --discover` (chỉ cần nếu cấu hình node thay đổi)
-3. Chạy các model theo thứ tự Bước 2 → 3 → 4
+3. Chạy Start (Bước 2 ở trên)
 
 ---
 
