@@ -1,0 +1,47 @@
+recipe_version: "1"
+name: MedGemma-27B-IT
+description: vLLM serving MedGemma-27B-IT (bfloat16)
+
+model: google/medgemma-27b-it
+
+cluster_only: false
+solo_only: false
+
+container: vllm-node-tf5-medgemma27b
+
+build_args:
+    - --tf5
+
+mods: []
+
+defaults:
+    port: 8001
+    host: 0.0.0.0
+    gpu_memory_utilization: 0.36
+    max_model_len: 32768
+    max_num_batched_tokens: 49152
+    max_num_seqs: 2
+    tensor_parallel: 1
+    pipeline_parallel: 2
+
+env: {}
+
+command: |
+    vllm serve google/medgemma-27b-it \
+      --dtype bfloat16 \
+      --quantization fp8 \
+      --kv-cache-dtype fp8 \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-model-len {max_model_len} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
+      --enable-auto-tool-choice \
+      --tool-call-parser pythonic \
+      --tensor-parallel-size {tensor_parallel} \
+      --pipeline-parallel-size {pipeline_parallel} \
+      --distributed-executor-backend ray
