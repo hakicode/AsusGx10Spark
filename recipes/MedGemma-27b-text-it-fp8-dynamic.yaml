@@ -1,13 +1,13 @@
 recipe_version: "1"
-name: MedGemma-1.5-4B-IT
-description: vLLM serving MedGemma-1.5-4B-IT (bfloat16)
+name: MedGemma-27B-IT
+description: vLLM serving MedGemma-27B-Text-IT (FP8-Dynamic)
 
-model: google/medgemma-1.5-4b-it
+model: ig1/medgemma-27b-text-it-FP8-Dynamic
 
 cluster_only: false
 solo_only: false
 
-container: vllm-node-tf5-medgemma4b
+container: vllm-node-tf5-medgemma27b
 
 build_args:
     - --tf5
@@ -15,19 +15,18 @@ build_args:
 mods: []
 
 defaults:
-    port: 8002
+    port: 8001
     host: 0.0.0.0
-    gpu_memory_utilization: 0.1
-    max_model_len: 65536
-    max_num_batched_tokens: 98304
-    max_num_seqs: 8
+    gpu_memory_utilization: 0.3
+    max_model_len: 8192
+    max_num_batched_tokens: 8192
+    max_num_seqs: 4
 
 env: {}
 
 command: |
-    vllm serve google/medgemma-1.5-4b-it \
-      --dtype bfloat16 \
-      --quantization fp8 \
+    vllm serve ig1/medgemma-27b-text-it-FP8-Dynamic \
+      --dtype auto \
       --kv-cache-dtype fp8 \
       --gpu-memory-utilization {gpu_memory_utilization} \
       --max-model-len {max_model_len} \
@@ -36,4 +35,6 @@ command: |
       --port {port} \
       --host {host} \
       --load-format fastsafetensors \
-      --enable-prefix-caching
+      --enable-prefix-caching \
+      --enable-auto-tool-choice \
+      --tool-call-parser pythonic
