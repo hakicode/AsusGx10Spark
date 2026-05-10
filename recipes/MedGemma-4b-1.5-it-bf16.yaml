@@ -17,9 +17,9 @@ mods: []
 defaults:
     port: 8002
     host: 0.0.0.0
-    gpu_memory_utilization: 0.1
+    gpu_memory_utilization: 0.3
     max_model_len: 65536
-    max_num_batched_tokens: 98304
+    max_num_batched_tokens: 16384
     max_num_seqs: 8
 
 env: {}
@@ -27,8 +27,6 @@ env: {}
 command: |
     vllm serve google/medgemma-1.5-4b-it \
       --dtype bfloat16 \
-      --quantization fp8 \
-      --kv-cache-dtype fp8 \
       --gpu-memory-utilization {gpu_memory_utilization} \
       --max-model-len {max_model_len} \
       --max-num-batched-tokens {max_num_batched_tokens} \

@@ -35,10 +35,9 @@ cd /home/lvai/spark-vllm-docker/
 tmux attach -t job-recipe-2
 
 # START
-./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup --name=vllm_node_4b -d
-./run-recipe.sh MedGemma-27b-text-it-fp8-dynamic --setup --name=vllm_node_27b -d
-./run-recipe.sh MedGemma-27b-it-bf16-ray --setup --name=vllm_node_27b -d
 ./run-recipe.sh Llama-4-Scout-17B-16E-Instruct-fp8-ray --setup --name=vllm_node_llama4scout -d
+./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup --name=vllm_node_4b -d --solo
+./run-recipe.sh MedGemma-27b-text-it-fp8-dynamic --setup --name=vllm_node_27b -d --solo
 
 # STOP
 ./launch-cluster.sh --name vllm_node_llama4scout stop
