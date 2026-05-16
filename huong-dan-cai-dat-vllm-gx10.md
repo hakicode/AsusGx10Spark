@@ -12,26 +12,26 @@
 
 > **Nguồn:** [ASUS Ascent GX10 Tech Specs](https://www.asus.com/vn/networking-iot-servers/desktop-ai-supercomputer/ultra-small-ai-supercomputers/asus-ascent-gx10/techspec/)
 
-| Thành phần            | Thông số                                                                                |
-| --------------------- | --------------------------------------------------------------------------------------- |
-| **Tên sản phẩm**      | ASUS Ascent GX10                                                                        |
-| **CPU**               | ARM v9.2-A (GB10 Superchip)                                                             |
-| **GPU**               | NVIDIA Blackwell GPU (GB10, integrated)                                                 |
+| Thành phần            | Thông số                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| **Tên sản phẩm**      | ASUS Ascent GX10                                                                       |
+| **CPU**               | ARM v9.2-A (GB10 Superchip)                                                            |
+| **GPU**               | NVIDIA Blackwell GPU (GB10, integrated)                                                |
 | **Memory**            | 128 GB LPDDR5x — unified system memory (CPU + GPU dùng chung)                          |
 | **Storage**           | 1 TB M.2 NVMe PCIe 4.0 SSD                                                             |
-| **Mạng**              | 1× NVIDIA ConnectX-7 SmartNIC (200G QSFP) · 1× 10G LAN · Wi-Fi 7 · Bluetooth 5.4      |
-| **Cổng I/O**          | 3× USB 3.2 Gen 2×2 Type-C · 1× USB-C PD 180 W · 1× HDMI 2.1 · 1× Kensington Lock     |
-| **Nguồn**             | 240 W Adapter                                                                           |
+| **Mạng**              | 1× NVIDIA ConnectX-7 SmartNIC (200G QSFP) · 1× 10G LAN · Wi-Fi 7 · Bluetooth 5.4       |
+| **Cổng I/O**          | 3× USB 3.2 Gen 2×2 Type-C · 1× USB-C PD 180 W · 1× HDMI 2.1 · 1× Kensington Lock       |
+| **Nguồn**             | 240 W Adapter                                                                          |
 | **Kích thước**        | 150 × 150 × 51 mm · 1,48 kg                                                            |
-| **OS**                | Ubuntu Linux (NVIDIA DGX™ Base OS) — OS duy nhất được kiểm tra và hỗ trợ chính thức   |
-| **Hiệu năng AI**      | 1 petaFLOP (FP4)                                                                        |
-| **Driver**            | Dòng 580/590-open — dành riêng cho Blackwell GB10                                       |
-| **CUDA**              | Phiên bản 13.x — GB10 (sm_121) yêu cầu CUDA 13 trở lên                                |
+| **OS**                | Ubuntu Linux (NVIDIA DGX™ Base OS) — OS duy nhất được kiểm tra và hỗ trợ chính thức    |
+| **Hiệu năng AI**      | 1 petaFLOP (FP4)                                                                       |
+| **Driver**            | Dòng 580/590-open — dành riêng cho Blackwell GB10                                      |
+| **CUDA**              | Phiên bản 13.x — GB10 (sm_121) yêu cầu CUDA 13 trở lên                                 |
 | **nvidia-smi**        | Báo "Memory-Usage: Not Supported" — hành vi bình thường của unified memory             |
-| **vLLM**              | Yêu cầu wheel CUDA 13 / aarch64 — không dùng `pip install` thông thường               |
-| **Swap**              | Phải tắt trước khi vận hành — OOM trên unified memory có thể làm treo toàn bộ hệ thống|
+| **vLLM**              | Yêu cầu wheel CUDA 13 / aarch64 — không dùng `pip install` thông thường                |
+| **Swap**              | Phải tắt trước khi vận hành — OOM trên unified memory có thể làm treo toàn bộ hệ thống |
 | **Cập nhật hệ thống** | Thực hiện qua DGX Dashboard (`http://localhost:11000`) — không dùng `apt upgrade`      |
-| **Cluster**           | Hỗ trợ kết nối tối đa 2 node qua QSFP 200G trực tiếp, hoặc nhiều hơn qua 200G switch  |
+| **Cluster**           | Hỗ trợ kết nối tối đa 2 node qua QSFP 200G trực tiếp, hoặc nhiều hơn qua 200G switch   |
 
 ---
 
@@ -43,7 +43,8 @@
 - [IV. Cài vLLM](#iv-cài-vllm)
 - [V. Chạy các model](#v-chạy-các-model)
 - [VI. Kiểm tra & giám sát](#vi-kiểm-tra--giám-sát)
-- [VII. Liên hệ hỗ trợ](#vii-liên-hệ-hỗ-trợ)
+- [VII. Nginx Reverse Proxy](#vii-nginx-reverse-proxy)
+- [VIII. Liên hệ hỗ trợ](#viii-liên-hệ-hỗ-trợ)
 
 ---
 
@@ -51,12 +52,12 @@
 
 ### 1. Bộ nhớ thực tế vận hành (FP8)
 
-| Model              | Kiến trúc                              | Params (active / total) | Bộ nhớ lý thuyết (FP8) | Bộ nhớ thực tế       | Mức dùng GPU | Cấu hình Ray        | Node chạy              |
-| ------------------ | -------------------------------------- | ----------------------- | ----------------------- | -------------------- | ------------ | ------------------- | ---------------------- |
-| MedGemma 27B-IT    | Gemma 3 27B (dense)                    | 27B / 27B               | ~27 GB                  | ~32 GB / node        | 0.36         | pp=2 (2 nodes)      | Node 1 + Node 2        |
-| MedGemma 1.5 4B-IT | PaliGemma 2 (SigLIP 400M + Gemma 3B)  | ~3.4B / ~3.4B           | ~3.5 GB                 | ~10 GB               | 0.1          | single node         | Node 1                 |
-| Llama 4 Scout 17B  | MoE 16 experts (NVIDIA FP8 pre-quant) | 17B / 109B              | ~54 GB                  | ~70 GB / node        | 0.5          | pp=2 (2 nodes) ¹    | Node 1 + Node 2        |
-| **Tổng**           |                                        |                         | **~84.5 GB**            | **~174 GB**          |              |                     | 2 × 128 GB             |
+| Model                           | Kiến trúc                             | Params (active / total) | Bộ nhớ lý thuyết (FP8) | Bộ nhớ thực tế | Mức dùng GPU | Cấu hình Ray     | Node chạy       |
+| ------------------------------- | ------------------------------------- | ----------------------- | ---------------------- | -------------- | ------------ | ---------------- | --------------- |
+| Llama 4 Scout 17B (port 8000)   | MoE 16 experts (NVIDIA FP8 pre-quant) | 17B / 109B              | ~54 GB                 | ~70 GB / node  | 0.53         | pp=2 (2 nodes) ¹ | Node 1 + Node 2 |
+| MedGemma 27B FP8-Dynamic (8001) | Gemma 3 27B (dense, FP8-Dynamic)      | 27B / 27B               | ~27 GB                 | ~32 GB         | 0.3          | solo             | Node 1          |
+| MedGemma 1.5 4B-IT (port 8002)  | PaliGemma 2 (SigLIP 400M + Gemma 3B)  | ~3.4B / ~3.4B           | ~3.5 GB                | ~10 GB         | 0.1          | solo             | Node 2          |
+| **Tổng**                        |                                       |                         | **~84.5 GB**           | **~172 GB**    |              |                  | 2 × 128 GB      |
 
 ¹ Llama 4 Scout không khởi động được trên 1 node đơn — bắt buộc pipeline-parallel 2 nodes.
 
@@ -68,27 +69,33 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Node 1 – Head  (192.168.100.10)                                    │
+│  Node 1 – 192.168.18.91                                             │
 │                                                                     │
-│  ● Ray Head Node  (port 6379)                                       │
-│  ● MedGemma 27B-IT   (port 8001)  ──── tensor-parallel ────┐        │
-│  ● MedGemma 1.5 4B-IT    (port 8002)                       │        │
-└────────────────────────────────────────────────────────────┼────────┘
-                   200G QSFP ConnectX-7 / RoCE               │
-┌────────────────────────────────────────────────────────────┼────────┐
-│  Node 2 – Worker  (192.168.100.11)                         │        │
-│                                                            │        │
-│  ● Ray Worker Node                                         │        │
-│  ● MedGemma 27B-IT   (nhận tensor từ Node 1) ──────────────┘        │
-│  ● Llama 4 Scout 17B  (port 8000)                                   │
+│  ● MedGemma 27B-IT FP8-Dynamic  (port 8001, solo)                  │
+│  ● Llama 4 Scout 17B  (port 8000, pipeline-parallel pp=2) ─────┐   │
+└────────────────────────────────────────────────────────────────┼───┘
+                   200G QSFP ConnectX-7 / RoCE                   │
+┌────────────────────────────────────────────────────────────────┼───┐
+│  Node 2 – 192.168.18.92                                        │   │
+│                                                                │   │
+│  ● MedGemma 1.5 4B-IT  (port 8002, solo)                      │   │
+│  ● Llama 4 Scout 17B   (nhận pipeline từ Node 1) ─────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
+                              │
+                    Nginx reverse proxy
+                    (192.168.18.x — mạng nội bộ)
+                              │
+              ┌───────────────┼───────────────┐
+           :8000           :8001           :8002
+       Llama Scout      MedGemma 27B    MedGemma 4B
 ```
 
 > **Port tổng hợp:**
-> - `8000` — Llama 4 Scout 17B (Node 2)
-> - `8001` — MedGemma 27B-IT (Node 1, tensor-parallel sang Node 2)
-> - `8002` — MedGemma 1.5 4B-IT (Node 1)
-> - `6379` — Ray Head (Node 1)
+>
+> - `8000` — Llama 4 Scout 17B (pipeline-parallel, Node 1 + Node 2)
+> - `8001` — MedGemma 27B-IT FP8-Dynamic (Node 1, solo)
+> - `8002` — MedGemma 1.5 4B-IT (Node 2, solo)
+> - `6379` — Ray Head (Node 1, dùng cho Llama Scout)
 
 ---
 
@@ -182,12 +189,12 @@ sudo netplan apply
 
 ```yaml
 network:
-  version: 2
-  ethernets:
-    enp1s0f0np0:
-      link-local: [ ipv4 ]
-    enp1s0f1np1:
-      link-local: [ ipv4 ]
+    version: 2
+    ethernets:
+        enp1s0f0np0:
+            link-local: [ipv4]
+        enp1s0f1np1:
+            link-local: [ipv4]
 ```
 
 Sau khi tạo file:
@@ -339,12 +346,12 @@ cd spark-vllm-docker
 
 Cả 3 model là **gated model**, phải accept license trên trang HuggingFace trước khi download:
 
-| Model              | URL                                                                      |
-| ------------------ | ------------------------------------------------------------------------ |
-| MedGemma 27B-IT    | https://huggingface.co/google/medgemma-27b-it                            |
-| MedGemma 1.5 4B-IT | https://huggingface.co/google/medgemma-1.5-4b-it                         |
-| Llama 4 Scout 17B  | https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct         |
-| Tạo token          | https://huggingface.co/settings/tokens (chọn loại **Read**)              |
+| Model              | URL                                                              |
+| ------------------ | ---------------------------------------------------------------- |
+| MedGemma 27B-IT    | https://huggingface.co/google/medgemma-27b-it                    |
+| MedGemma 1.5 4B-IT | https://huggingface.co/google/medgemma-1.5-4b-it                 |
+| Llama 4 Scout 17B  | https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct |
+| Tạo token          | https://huggingface.co/settings/tokens (chọn loại **Read**)      |
 
 Khai báo token trên **cả 2 máy**:
 
@@ -369,7 +376,102 @@ echo $HF_TOKEN
 
 ### 3. Tạo các file cấu hình recipe trong thư mục `recipes/`
 
-#### `recipes/MedGemma-4b-1.5-it-bf16.yaml`
+#### `recipes/Llama-4-Scout-17B-16E-Instruct-fp8-ray.yaml` — port 8000
+
+```yaml
+recipe_version: "1"
+name: Llama-4-Scout-17B-16E-Instruct
+description: vLLM serving Llama-4-Scout-17B-16E-Instruct-FP8 (dtype auto, tensor-parallel 2 nodes)
+
+model: nvidia/Llama-4-Scout-17B-16E-Instruct-FP8
+
+cluster_only: false
+solo_only: false
+
+container: vllm-node-tf5-llama4scout
+
+build_args:
+    - --tf5
+
+mods: []
+
+defaults:
+    port: 8000
+    host: 0.0.0.0
+    gpu_memory_utilization: 0.53
+    max_model_len: 8192
+    max_num_batched_tokens: 4096
+    max_num_seqs: 8
+    tensor_parallel: 1
+    pipeline_parallel: 2
+
+env: {}
+
+command: |
+    vllm serve nvidia/Llama-4-Scout-17B-16E-Instruct-FP8 \
+      --dtype auto \
+      --kv-cache-dtype fp8 \
+      --max-model-len {max_model_len} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
+      --port {port} \
+      --host {host} \
+      --tensor-parallel-size {tensor_parallel} \
+      --pipeline-parallel-size {pipeline_parallel} \
+      --distributed-executor-backend ray
+```
+
+---
+
+#### `recipes/MedGemma-27b-text-it-fp8-dynamic.yaml` — port 8001
+
+```yaml
+recipe_version: "1"
+name: MedGemma-27B-IT
+description: vLLM serving MedGemma-27B-Text-IT (FP8-Dynamic)
+
+model: ig1/medgemma-27b-text-it-FP8-Dynamic
+
+cluster_only: false
+solo_only: false
+
+container: vllm-node-tf5-medgemma27b
+
+build_args:
+    - --tf5
+
+mods: []
+
+defaults:
+    port: 8001
+    host: 0.0.0.0
+    gpu_memory_utilization: 0.3
+    max_model_len: 8192
+    max_num_batched_tokens: 8192
+    max_num_seqs: 4
+
+env: {}
+
+command: |
+    vllm serve ig1/medgemma-27b-text-it-FP8-Dynamic \
+      --dtype auto \
+      --kv-cache-dtype fp8 \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --max-model-len {max_model_len} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
+      --port {port} \
+      --host {host} \
+      --load-format fastsafetensors \
+      --enable-prefix-caching \
+      --enable-auto-tool-choice \
+      --tool-call-parser pythonic
+```
+
+---
+
+#### `recipes/MedGemma-4b-1.5-it-bf16.yaml` — port 8002
 
 ```yaml
 recipe_version: "1"
@@ -415,108 +517,6 @@ command: |
 
 ---
 
-#### `recipes/MedGemma-27b-it-bf16-ray.yaml`
-
-```yaml
-recipe_version: "1"
-name: MedGemma-27B-IT
-description: vLLM serving MedGemma-27B-IT (bfloat16)
-
-model: google/medgemma-27b-it
-
-cluster_only: false
-solo_only: false
-
-container: vllm-node-tf5-medgemma27b
-
-build_args:
-    - --tf5
-
-mods: []
-
-defaults:
-    port: 8001
-    host: 0.0.0.0
-    gpu_memory_utilization: 0.36
-    max_model_len: 32768
-    max_num_batched_tokens: 49152
-    max_num_seqs: 2
-    tensor_parallel: 1
-    pipeline_parallel: 2
-
-env: {}
-
-command: |
-    vllm serve google/medgemma-27b-it \
-      --dtype bfloat16 \
-      --quantization fp8 \
-      --kv-cache-dtype fp8 \
-      --gpu-memory-utilization {gpu_memory_utilization} \
-      --max-model-len {max_model_len} \
-      --max-num-batched-tokens {max_num_batched_tokens} \
-      --max-num-seqs {max_num_seqs} \
-      --port {port} \
-      --host {host} \
-      --load-format fastsafetensors \
-      --enable-prefix-caching \
-      --enable-chunked-prefill \
-      --enable-auto-tool-choice \
-      --tool-call-parser pythonic \
-      --tensor-parallel-size {tensor_parallel} \
-      --pipeline-parallel-size {pipeline_parallel} \
-      --distributed-executor-backend ray
-```
-
----
-
-#### `recipes/Llama-4-Scout-17B-16E-Instruct-fp8-ray.yaml`
-
-```yaml
-recipe_version: "1"
-name: Llama-4-Scout-17B-16E-Instruct
-description: vLLM serving Llama-4-Scout-17B-16E-Instruct-FP8 (dtype auto, tensor-parallel 2 nodes)
-
-model: nvidia/Llama-4-Scout-17B-16E-Instruct-FP8
-
-cluster_only: false
-solo_only: false
-
-container: vllm-node-tf5-llama4scout
-
-build_args:
-    - --tf5
-
-mods: []
-
-defaults:
-    port: 8000
-    host: 0.0.0.0
-    gpu_memory_utilization: 0.5
-    max_model_len: 8192
-    max_num_batched_tokens: 4096
-    max_num_seqs: 8
-    tensor_parallel: 1
-    pipeline_parallel: 2
-
-env: {}
-
-command: |
-    vllm serve nvidia/Llama-4-Scout-17B-16E-Instruct-FP8 \
-      --dtype auto \
-      --kv-cache-dtype fp8 \
-      --max-model-len {max_model_len} \
-      --gpu-memory-utilization {gpu_memory_utilization} \
-      --max-num-batched-tokens {max_num_batched_tokens} \
-      --max-num-seqs {max_num_seqs} \
-      --port {port} \
-      --host {host} \
-      --tensor-parallel-size {tensor_parallel} \
-      --pipeline-parallel-size {pipeline_parallel} \
-      --distributed-executor-backend ray
-```
-
----
-
 ## V. Chạy các model
 
 > Chạy trên **Node 1**. Cờ `-d` chạy container ở chế độ nền (detached).
@@ -539,17 +539,17 @@ cd ~/spark-vllm-docker
 ```bash
 cd ~/spark-vllm-docker
 
-./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup --name=vllm_node_4b -d
-./run-recipe.sh MedGemma-27b-it-bf16-ray --setup --name=vllm_node_27b -d
 ./run-recipe.sh Llama-4-Scout-17B-16E-Instruct-fp8-ray --setup --name=vllm_node_llama4scout -d
+./run-recipe.sh MedGemma-4b-1.5-it-bf16 --setup --name=vllm_node_4b -d --solo
+./run-recipe.sh MedGemma-27b-text-it-fp8-dynamic --setup --name=vllm_node_27b -d --solo
 ```
 
 Kiểm tra sau khi các model đã load xong:
 
 ```bash
-curl http://192.168.100.10:8002/v1/models   # MedGemma 1.5 4B-IT
-curl http://192.168.100.10:8001/v1/models   # MedGemma 27B-IT
-curl http://192.168.100.11:8000/v1/models   # Llama 4 Scout 17B
+curl http://192.168.18.91:8000/v1/models   # Llama 4 Scout 17B
+curl http://192.168.18.91:8001/v1/models   # MedGemma 27B FP8-Dynamic
+curl http://192.168.18.92:8002/v1/models   # MedGemma 1.5 4B-IT
 ```
 
 ---
@@ -571,9 +571,9 @@ cd ~/spark-vllm-docker
 ### Kiểm tra tất cả models đã load
 
 ```bash
-curl http://192.168.100.10:8001/v1/models   # MedGemma 27B-IT
-curl http://192.168.100.10:8002/v1/models   # MedGemma 1.5 4B-IT
-curl http://192.168.100.11:8000/v1/models   # Llama 4 Scout 17B
+curl http://192.168.18.91:8001/v1/models   # MedGemma 27B-IT (Node 1)
+curl http://192.168.18.92:8002/v1/models   # MedGemma 1.5 4B-IT (Node 2)
+curl http://192.168.18.91:8000/v1/models   # Llama 4 Scout 17B
 ```
 
 ---
@@ -581,30 +581,30 @@ curl http://192.168.100.11:8000/v1/models   # Llama 4 Scout 17B
 ### Test inference
 
 ```bash
-# Test MedGemma 1.5 4B-IT
-curl http://192.168.100.10:8002/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "google/medgemma-1.5-4b-it",
-    "messages": [{"role": "user", "content": "Triệu chứng của viêm phổi là gì?"}],
-    "max_tokens": 200
-  }'
-
-# Test MedGemma 27B-IT
-curl http://192.168.100.10:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "google/medgemma-27b-it",
-    "messages": [{"role": "user", "content": "Phân tích kết quả xét nghiệm máu bình thường."}],
-    "max_tokens": 200
-  }'
-
-# Test Llama 4 Scout 17B
-curl http://192.168.100.11:8000/v1/chat/completions \
+# Test Llama 4 Scout 17B — port 8000
+curl http://192.168.18.91:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "nvidia/Llama-4-Scout-17B-16E-Instruct-FP8",
     "messages": [{"role": "user", "content": "Hello, what can you do?"}],
+    "max_tokens": 200
+  }'
+
+# Test MedGemma 27B FP8-Dynamic — port 8001
+curl http://192.168.18.91:8001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "ig1/medgemma-27b-text-it-FP8-Dynamic",
+    "messages": [{"role": "user", "content": "Phân tích kết quả xét nghiệm máu bình thường."}],
+    "max_tokens": 200
+  }'
+
+# Test MedGemma 1.5 4B-IT — port 8002
+curl http://192.168.18.92:8002/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "google/medgemma-1.5-4b-it",
+    "messages": [{"role": "user", "content": "Triệu chứng của viêm phổi là gì?"}],
     "max_tokens": 200
   }'
 ```
@@ -644,16 +644,175 @@ Sau khi reboot, thực hiện lại theo thứ tự:
 
 ---
 
-## VII. Liên hệ hỗ trợ
+## VII. Nginx Reverse Proxy
 
-|                                | Link                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| ASUS Support GX10              | https://www.asus.com/vn/support/                                                |
-| ASUS FAQ GX10                  | https://www.asus.com/support/faq/1056142/                                       |
-| ASUS GX10 GitHub Discussions   | https://github.com/orgs/asus-ascent-gx10/discussions                            |
-| NVIDIA Developer Forums (GB10) | https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/719  |
-| spark-vllm-docker              | https://github.com/eugr/spark-vllm-docker                                       |
-| NVIDIA DGX Spark Playbooks     | https://github.com/NVIDIA/dgx-spark-playbooks                                   |
+Nginx chạy trên máy chủ gateway để forward traffic từ switch nội bộ ra mạng, với rate limiting riêng cho từng model.
+
+### Kiến trúc
+
+```
+Client (mạng nội bộ)
+        │
+   Nginx Gateway
+   ├── :8000 → 192.168.18.91:8000  (Llama 4 Scout)
+   ├── :8001 → 192.168.18.91:8001  (MedGemma 27B)
+   └── :8002 → 192.168.18.92:8002  (MedGemma 4B)
+```
+
+### Rate limit
+
+| Model         | Rate   | Burst |
+| ------------- | ------ | ----- |
+| Llama 4 Scout | 10 r/s | 20    |
+| MedGemma 27B  | 5 r/s  | 10    |
+| MedGemma 4B   | 10 r/s | 20    |
+
+### Cấu hình `/etc/nginx/conf.d/vllm.conf`
+
+```nginx
+# ============================================
+# Upstreams
+# ============================================
+upstream llama4_scout {
+    server 192.168.18.91:8000;
+    keepalive 32;
+    keepalive_requests 1000;
+    keepalive_timeout 60s;
+}
+upstream medgemma_27b {
+    server 192.168.18.91:8001;
+    keepalive 32;
+    keepalive_requests 1000;
+    keepalive_timeout 60s;
+}
+upstream medgemma_4b {
+    server 192.168.18.92:8002;
+    keepalive 32;
+    keepalive_requests 1000;
+    keepalive_timeout 60s;
+}
+
+# ============================================
+# Rate limit
+# ============================================
+limit_req_zone $binary_remote_addr zone=llama4_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=med27b_limit:10m rate=5r/s;
+limit_req_zone $binary_remote_addr zone=med4b_limit:10m  rate=10r/s;
+
+# ============================================
+# Llama4 Scout — listen :8000 → 192.168.18.91:8000
+# ============================================
+server {
+    listen 8000;
+    server_name _;
+    client_max_body_size 200M;
+
+    location / {
+        limit_req zone=llama4_limit burst=20 nodelay;
+
+        proxy_pass            http://llama4_scout;
+        proxy_http_version    1.1;
+        proxy_set_header      Host              $host;
+        proxy_set_header      X-Real-IP         $remote_addr;
+        proxy_set_header      X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header      X-Forwarded-Proto $scheme;
+        proxy_set_header      Connection        "";
+
+        proxy_buffering             off;
+        proxy_cache                 off;
+        proxy_read_timeout          3600s;
+        proxy_send_timeout          3600s;
+        proxy_connect_timeout       300s;
+        chunked_transfer_encoding   on;
+        add_header X-Accel-Buffering no always;
+    }
+}
+
+# ============================================
+# MedGemma 27B — listen :8001 → 192.168.18.91:8001
+# ============================================
+server {
+    listen 8001;
+    server_name _;
+    client_max_body_size 200M;
+
+    location / {
+        limit_req zone=med27b_limit burst=10 nodelay;
+
+        proxy_pass            http://medgemma_27b;
+        proxy_http_version    1.1;
+        proxy_set_header      Host              $host;
+        proxy_set_header      X-Real-IP         $remote_addr;
+        proxy_set_header      X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header      X-Forwarded-Proto $scheme;
+        proxy_set_header      Connection        "";
+
+        proxy_buffering             off;
+        proxy_cache                 off;
+        proxy_read_timeout          3600s;
+        proxy_send_timeout          3600s;
+        proxy_connect_timeout       300s;
+        chunked_transfer_encoding   on;
+        add_header X-Accel-Buffering no always;
+    }
+}
+
+# ============================================
+# MedGemma 4B — listen :8002 → 192.168.18.92:8002
+# ============================================
+server {
+    listen 8002;
+    server_name _;
+    client_max_body_size 200M;
+
+    location / {
+        limit_req zone=med4b_limit burst=20 nodelay;
+
+        proxy_pass            http://medgemma_4b;
+        proxy_http_version    1.1;
+        proxy_set_header      Host              $host;
+        proxy_set_header      X-Real-IP         $remote_addr;
+        proxy_set_header      X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header      X-Forwarded-Proto $scheme;
+        proxy_set_header      Connection        "";
+
+        proxy_buffering             off;
+        proxy_cache                 off;
+        proxy_read_timeout          3600s;
+        proxy_send_timeout          3600s;
+        proxy_connect_timeout       300s;
+        chunked_transfer_encoding   on;
+        add_header X-Accel-Buffering no always;
+    }
+}
+```
+
+### Lệnh quản lý Nginx
+
+```bash
+# Kiểm tra cấu hình
+sudo nginx -t
+
+# Reload sau khi sửa config (không down service)
+sudo systemctl reload nginx
+
+# Xem log realtime
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
+```
+
+---
+
+## VIII. Liên hệ hỗ trợ
+
+|                                | Link                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------ |
+| ASUS Support GX10              | https://www.asus.com/vn/support/                                               |
+| ASUS FAQ GX10                  | https://www.asus.com/support/faq/1056142/                                      |
+| ASUS GX10 GitHub Discussions   | https://github.com/orgs/asus-ascent-gx10/discussions                           |
+| NVIDIA Developer Forums (GB10) | https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/719 |
+| spark-vllm-docker              | https://github.com/eugr/spark-vllm-docker                                      |
+| NVIDIA DGX Spark Playbooks     | https://github.com/NVIDIA/dgx-spark-playbooks                                  |
 
 ---
 
